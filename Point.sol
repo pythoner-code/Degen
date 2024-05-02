@@ -1,56 +1,54 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Points is ERC20, Ownable {
+contract Degen is ERC20,Ownable {
+    struct GameItem {
+        string name;
+        uint256 price;
+    }
 
-    enum Level { Level1, Level2, Level3 }
-
-    mapping(address => Level) public userLevels;
+    mapping(uint256 => GameItem) public gameItems;
+    uint256 public totalItems;
 
     constructor() ERC20("Degen", "DGN") Ownable(msg.sender){
-        
+        totalItems = 0;
     }
 
-    function redeemTokens(uint256 _value) external {
-        require(balanceOf(msg.sender) >= _value, "Insufficient Balance");
-        require(_value >= 200, "Minimum redeem value is 200");
-        _burn(msg.sender, _value);
-
-        if (_value >= 500) {
-            userLevels[msg.sender] = Level.Level3;
-        } else if (_value >= 200) {
-            userLevels[msg.sender] = Level.Level2;
-        } else {
-            userLevels[msg.sender] = Level.Level1;
-        }
-    }
-
-    function mint(address to, uint256 amount) public onlyOwner {
+    function mint(address to, uint256 amount) public onlyOwner   {
         _mint(to, amount);
     }
 
-    function decimals() public pure override returns (uint8) {
-        return 18;
+    function setItem(string memory _name, uint256 _price) external  {
+        require(_price > 0, "Invalid price");
+
+        totalItems++;
+        gameItems[totalItems] = GameItem(_name, _price);
     }
 
-    function getBalance() external view returns (uint256) {
-        return balanceOf(msg.sender); 
+    function redeemItem(uint256 itemId) external {
+        require(itemId > 0 && itemId <= totalItems, "Invalid item ID");
+        require(balanceOf(msg.sender) >= gameItems[itemId].price, "Insufficient balance");
+
+        _transfer(msg.sender, address(this), gameItems[itemId].price);
     }
 
-    function transferTokens(address _rec, uint256 _value) external {
-        require(balanceOf(msg.sender) >= _value, "You dont have enough tokens");
-        _transfer(msg.sender, _rec, _value);
+    function getAllItems() external view returns (GameItem[] memory) {
+        GameItem[] memory items = new GameItem[](totalItems);
+        for (uint256 i = 1; i <= totalItems; i++) {
+            items[i - 1] = gameItems[i];
+        }
+        return items;
     }
 
-    function burnTokens(uint256 _value) external {
-        require(balanceOf(msg.sender) >= _value,"You dont have enough tokens to burn");
-        _burn(msg.sender, _value);
-    }
-
-    function getUserLevel(address user) external view returns (Level) {
-        return userLevels[user];
+   function transfer(address to, uint256 amount) public override returns (bool) {
+        _transfer(_msgSender(), to, amount);
+        return true;
+   }
+    function burn(uint256 amount) external {
+        require(balanceOf(msg.sender) >= amount, "Insufficient balance");
+        _burn(msg.sender, amount);
     }
 }
